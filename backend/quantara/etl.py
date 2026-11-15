@@ -170,11 +170,14 @@ def rebuild(conn, id):
         except Invalid as exc:
             errors[r["id"]] = exc
     dimensions = {k: {} for k in ("partner", "account", "rate")}
-    duplicate_payments = {
-        r["external_id"]
+    bank_payments = {
+        r["external_id"]: normalized.get(r["id"])
         for r in latest
         if r["source"] == "bank" and r["entity"] == "payment"
     }
+    skips = set()
+    rate_owners = {}
+
     for r in latest:
         entry = normalized.get(r["id"])
         if entry is not None and r["entity"] in dimensions:
@@ -183,7 +186,14 @@ def rebuild(conn, id):
                 if r["entity"] == "rate"
                 else r["external_id"]
             )
-            dimensions[r["entity"]][key] = entry
+            if r["entity"] == "rate" and key in rate_owners:
+                errors[rate_owners[key]] = Invalid("AMBIGUOUS_FX_PAIR", "UNIQUENESS")
+                errors[r["id"]] = Invalid("AMBIGUOUS_FX_PAIR", "UNIQUENESS")
+                dimensions["rate"].pop(key, None)
+            else:
+                dimensions[r["entity"]][key] = entry
+                if r["entity"] == "rate":
+                    rate_owners[key] = r["id"]
     for r in latest:
         key = r["id"]
         entry = normalized.get(key)
@@ -197,24 +207,28 @@ def rebuild(conn, id):
                     errors[key] = Invalid("UNKNOWN_ACCOUNT", "REFERENTIAL_INTEGRITY")
                 elif account["currency"] != entry["currency"]:
                     errors[key] = Invalid("ACCOUNT_CURRENCY_MISMATCH", "CONSISTENCY")
-                elif r["source"] == "csv" and r["external_id"] in duplicate_payments:
-                    errors[key] = Invalid("DUPLICATE_BANK_ID", "UNIQUENESS")
+                elif r["source"] == "csv" and r["external_id"] in bank_payments:
+                    if bank_payments[r["external_id"]] == entry:
+                        skips.add(key)
+                    else:
+                        errors[key] = Invalid("BANK_ID_CONFLICT", "UNIQUENESS")
             if (
                 kind in {"invoice", "payment", "statement"}
                 and key not in errors
+                and key not in skips
                 and entry["currency"] != BASE
                 and (entry["date"], entry["currency"]) not in dimensions["rate"]
             ):
                 errors[key] = Invalid("FX_MISSING", "REFERENTIAL_INTEGRITY")
         exc = errors.get(key)
-        status = "QUARANTINED" if exc else "READY"
+        status = "QUARANTINED" if exc else "DUPLICATE" if key in skips else "READY"
         previous = row(
             conn,
             "SELECT * FROM stage WHERE raw=:id AND mapping=:v",
             id=key,
             v=mapping["version"],
         )
-        reason = str(exc) if exc else None
+        reason = str(exc) if exc else "MATCHED_BANK_RECORD" if key in skips else None
         if not previous or previous["reason"] != reason:
             sql(
                 conn,
@@ -241,7 +255,7 @@ def rebuild(conn, id):
                     external_id=r["external_id"],
                 )
         fields = dict(s=r["source"], e=kind, k=r["external_id"])
-        if exc:
+        if exc or key in skips:
             sql(
                 conn,
                 "DELETE FROM facts WHERE source=:s AND entity=:e AND external_id=:k",

@@ -30,7 +30,6 @@ def calculate(facts, excluded, start, end, unavailable=()):
         "expenses": defaultdict(lambda: ZERO),
     }
     checks = []
-    budgets = defaultdict(lambda: ZERO)
     rate = {
         (r["business_date"], r["currency"]): r for r in facts if r["entity"] == "rate"
     }
@@ -206,6 +205,7 @@ def calculate(facts, excluded, start, end, unavailable=()):
                 {
                     "code": "STATEMENT_MISSING",
                     "object": account,
+                    "currency": accounts[account]["currency"],
                     "raw": [accounts[account]["raw"]],
                 }
             )
@@ -222,10 +222,14 @@ def calculate(facts, excluded, start, end, unavailable=()):
         balance, fx = converted(actual, statement)
         contribute("cash_balance", statement, balance, fx)
         difference = actual - expected
+        lineage["cash_balance"][-1]["related_raw"] = [p["raw"] for p in covered]
+        if difference:
+            omitted["cash_balance"].append(statement["raw"])
         checks.append(
             {
                 "code": "BANK_MISMATCH" if difference else "BANK_MATCH",
                 "object": account,
+                "currency": statement["currency"],
                 "expected": str(expected),
                 "actual": str(actual),
                 "difference": str(difference),
@@ -247,7 +251,6 @@ def calculate(facts, excluded, start, end, unavailable=()):
         key = (day.strftime("%Y-%m"), f["category"])
         if f["entity"] == "budget":
             monthly_budget[key] += f["amount"]
-            budgets[f["category"]] += f["amount"]
             budget_evidence.append({"raw": f["raw"], "amount": str(-f["amount"])})
         if (
             f["entity"] == "invoice"

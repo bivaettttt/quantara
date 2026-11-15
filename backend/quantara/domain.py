@@ -100,7 +100,7 @@ def normalize(kind, p, aliases):
         if amount == 0 or (nature == "FEE" and amount > 0):
             raise Invalid("INVALID_DIRECTION", "CONSISTENCY")
         return result | {
-            "amount": str(amount),
+            "amount": str(money(amount)),
             "account": string("account"),
             "nature": nature,
             "document": string("document") if p.get("document") else None,

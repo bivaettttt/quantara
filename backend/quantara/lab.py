@@ -36,7 +36,7 @@ SCENARIOS = {
 PERIOD = {"start": "2026-06-01", "end": "2026-06-30"}
 
 
-def exercise(name, token, fault):
+def exercise(name, token, fault, keep_issue=False):
     trace = []
     checks = {}
     tag = uuid4().hex[:8]
@@ -212,6 +212,7 @@ def exercise(name, token, fault):
                     and report()["id"] == initial["id"]
                 )
             elif name in {"correction", "historical", "compare"}:
+                before = initial
                 change("erp", "invoice", key, invoice("2500.00"))
                 load()
                 updated = report()
@@ -248,11 +249,12 @@ def exercise(name, token, fault):
                 for x in call("GET", "/quarantine")
             )
             checks["incomplete_metric"] = value(report(), "revenue") is None
-            change("erp", "invoice", key, invoice())
-            load()
-            checks["repaired"] = all(
-                x["external_id"] != key for x in call("GET", "/quarantine")
-            )
+            if not keep_issue:
+                change("erp", "invoice", key, invoice())
+                load()
+                checks["repaired"] = all(
+                    x["external_id"] != key for x in call("GET", "/quarantine")
+                )
         elif name in {"refund", "unmatched", "bank"}:
             p = (
                 bank(document="INV-100", nature="REFUND")

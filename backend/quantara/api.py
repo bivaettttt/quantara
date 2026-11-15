@@ -236,7 +236,7 @@ def warehouse(
     with engine.connect() as conn:
         return rows(
             conn,
-            """SELECT * FROM facts WHERE (CAST(:e AS text) IS NULL OR entity=:e)
+            """SELECT source,entity,external_id,revision,raw,mapping,run,business_date,CAST(amount AS text) AS amount,currency,category,attributes FROM facts WHERE (CAST(:e AS text) IS NULL OR entity=:e)
                        ORDER BY business_date DESC NULLS LAST,source,external_id LIMIT 50 OFFSET :o""",
             e=entity,
             o=offset,
@@ -365,7 +365,7 @@ def lab_config(actor: Actor):
 
 
 @app.post(A + "/lab/{name}")
-def lab(name: str, actor: Actor, request: Request):
+def lab(name: str, actor: Actor, request: Request, keep_issue: bool = False):
     allow(actor, "ADMIN")
     if os.getenv("LAB_MODE") != "1" or name not in SCENARIOS:
         raise HTTPException(404, "SCENARIO_NOT_FOUND")
@@ -386,6 +386,7 @@ def lab(name: str, actor: Actor, request: Request):
                 name,
                 token,
                 lambda: pipeline(actor["login"], request.state.id, fail=True),
+                keep_issue=keep_issue,
             )
             audit(
                 conn,
