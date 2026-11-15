@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+export QUANTARA_LAB=1 QUANTARA_PORT="${QUANTARA_LAB_PORT:-8151}"
+case "${1:-up}" in
+  up) docker compose -p quantara-lab up -d --build --wait ;;
+  stop) docker compose -p quantara-lab down ;;
+  reset) docker compose -p quantara-lab down -v && docker compose -p quantara-lab up -d --build --wait ;;
+  *) echo 'Usage: scripts/lab up|stop|reset' >&2; exit 2 ;;
+esac

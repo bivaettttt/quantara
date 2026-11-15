@@ -1,0 +1,61 @@
+name: quantara
+x-source: &source
+  build: .
+  command: ["uvicorn","app:app","--app-dir","/source","--host","0.0.0.0","--port","8100"]
+  healthcheck:
+    test: ["CMD","python","-c","from urllib.request import urlopen; urlopen('http://127.0.0.1:8100/health', timeout=2)"]
+    interval: 3s
+    timeout: 3s
+    retries: 25
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: quantara
+      POSTGRES_USER: quantara
+      POSTGRES_PASSWORD: quantara-local
+    volumes: [warehouse:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -h localhost -U quantara"]
+      interval: 2s
+      timeout: 3s
+      retries: 25
+  erp:
+    <<: *source
+    environment: {SOURCE: erp, LAB_MODE: "${QUANTARA_LAB:-0}"}
+    volumes: [erp:/state]
+  bank:
+    <<: *source
+    environment: {SOURCE: bank, LAB_MODE: "${QUANTARA_LAB:-0}"}
+    volumes: [bank:/state]
+  fx:
+    <<: *source
+    environment: {SOURCE: fx, LAB_MODE: "${QUANTARA_LAB:-0}"}
+    volumes: [fx:/state]
+  api:
+    build: .
+    command: ["sh","-ec","alembic upgrade head && python -m quantara.seed && exec uvicorn quantara.api:app --host 0.0.0.0"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://quantara:quantara-local@db/quantara
+      DEMO_PASSWORD: "${QUANTARA_DEMO_PASSWORD:-Quantara-local-demo}"
+      LAB_MODE: "${QUANTARA_LAB:-0}"
+    depends_on:
+      db: {condition: service_healthy}
+      erp: {condition: service_healthy}
+      bank: {condition: service_healthy}
+      fx: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD","python","-c","from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 25
+  web:
+    build: ./frontend
+    ports: ["127.0.0.1:${QUANTARA_PORT:-8150}:80"]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  warehouse:
+  erp:
+  bank:
+  fx:
