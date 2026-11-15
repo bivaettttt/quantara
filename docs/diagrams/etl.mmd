@@ -1,0 +1,16 @@
+sequenceDiagram
+  actor Engineer
+  participant API
+  participant Source as ERP / Bank / FX
+  participant DB as PostgreSQL
+  Engineer->>API: Run incremental ETL
+  API->>DB: Acquire advisory lock and read checkpoints
+  API->>Source: Read paged deliveries after cursor
+  API->>DB: Append raw revisions and quality issues
+  API->>DB: Rebuild typed facts from latest valid revisions
+  alt publication succeeds
+    API->>DB: Commit facts, run and checkpoints
+  else storage or injected failure
+    API->>DB: Roll back and write failed run separately
+  end
+  API-->>Engineer: Run and correlation ID

@@ -1,0 +1,11 @@
+sequenceDiagram
+  participant S as Source
+  participant E as ETL
+  participant D as PostgreSQL
+  participant A as Analyst
+  S->>S: Append revision 2 with a new delivery sequence
+  E->>S: Poll after last cursor
+  E->>D: Append raw revision and project latest valid facts
+  D-->>E: Commit projection and cursor
+  A->>D: Request a new report via API
+  D-->>A: New report alongside the original revision

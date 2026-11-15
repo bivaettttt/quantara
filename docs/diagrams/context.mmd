@@ -1,0 +1,15 @@
+C4Context
+  title Quantara system context
+  Person(finance, "Financial analyst", "Builds and compares snapshots")
+  Person(engineer, "Data engineer", "Ingests and rebuilds facts")
+  Person(steward, "Data steward", "Investigates quality and mapping")
+  System(q, "Quantara", "Financial metrics and reproducible reporting")
+  System_Ext(erp, "ERP simulator", "Invoices, counterparties and budgets")
+  System_Ext(bank, "Bank statement provider", "Payments, accounts and statements")
+  System_Ext(fx, "FX provider", "Dated currency rates")
+  Rel(finance,q,"Analyzes reports")
+  Rel(engineer,q,"Operates ETL")
+  Rel(steward,q,"Investigates exclusions")
+  Rel(q,erp,"Reads REST")
+  Rel(q,bank,"Reads REST")
+  Rel(q,fx,"Reads REST")

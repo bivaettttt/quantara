@@ -1,0 +1,10 @@
+flowchart LR
+  U[Analyst browser] --> W[React over nginx]
+  W --> A[FastAPI modular monolith]
+  A --> D[(PostgreSQL warehouse)]
+  A -->|HTTP| E[ERP service]
+  A -->|HTTP| B[Bank service]
+  A -->|HTTP| F[FX service]
+  E --> V1[(ERP SQLite volume)]
+  B --> V2[(Bank SQLite volume)]
+  F --> V3[(FX SQLite volume)]

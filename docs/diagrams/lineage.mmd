@@ -1,0 +1,9 @@
+flowchart TD
+  R[Immutable report snapshot] --> K[KPI contributions]
+  R --> M[Input manifest and checksum]
+  K --> F[Warehouse projection]
+  K --> FX[Exact dated FX revision if used]
+  F --> S[Mapping version and staging]
+  S --> R0[Immutable raw delivery]
+  FX --> R0
+  R0 --> T[Run and source cursor]

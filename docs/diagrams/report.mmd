@@ -1,0 +1,15 @@
+sequenceDiagram
+  actor Analyst
+  participant API
+  participant DB as PostgreSQL
+  participant Finance as Calculation module
+  Analyst->>API: Build snapshot for a period
+  API->>DB: Acquire publication guard
+  API->>DB: Read canonical facts, mapping and quality
+  API->>Finance: Calculate Decimal measures with pinned rates
+  Finance-->>API: Measures, contributions and reconciliation
+  API->>DB: Insert or reuse snapshot by manifest and result digest
+  API-->>Analyst: Immutable snapshot and checksum
+  Analyst->>API: Compare two saved snapshots
+  API->>DB: Read frozen inputs and outputs
+  API-->>Analyst: Changed versions, numerical and quality differences

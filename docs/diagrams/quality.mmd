@@ -1,0 +1,8 @@
+stateDiagram-v2
+  [*] --> RAW
+  RAW --> DUPLICATE: Identical previously seen record
+  RAW --> QUARANTINED: Invalid fields or missing dependencies
+  RAW --> READY: Valid normalized record
+  QUARANTINED --> READY: Dependency restored and reprocessed
+  QUARANTINED --> SUPERSEDED: Corrected raw revision
+  READY --> SUPERSEDED: Newer canonical revision

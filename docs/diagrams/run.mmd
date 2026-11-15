@@ -1,0 +1,8 @@
+stateDiagram-v2
+  [*] --> RUNNING: Start publication transaction
+  RUNNING --> SUCCESS: Commit complete source and staging results
+  RUNNING --> PARTIAL: Commit with source or record exclusions
+  RUNNING --> FAILED: Roll back and persist separate diagnostic run
+  SUCCESS --> [*]
+  PARTIAL --> [*]
+  FAILED --> [*]

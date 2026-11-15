@@ -1,0 +1,12 @@
+erDiagram
+  CHECKPOINTS ||--o{ RAW : delivers
+  RUNS ||--o{ RAW : ingests
+  RUNS ||--o{ QUALITY : detects
+  RAW o|--o{ QUALITY : explains
+  RAW ||--o{ STAGE : normalizes
+  MAPPING ||--o{ STAGE : applies
+  RAW ||--o| FACTS : projects
+  MAPPING ||--o{ FACTS : classifies
+  RAW }o--o{ REPORTS : pinned_in_manifest
+  REPORTS ||--o{ SCENARIOS : anchors
+  USERS ||--o{ REPORTS : requests

@@ -36,3 +36,41 @@ Quantara helps a financial analyst explain differences between invoices and sett
 ## Scope
 
 Synthetic ERP, bank statements and FX. No bank connection, statutory financial statement, tax treatment, accounting certification, official FX rates or externally published financial guidance.
+
+## Roles, use cases and nonfunctional requirements
+
+| Role | Main operation | Scope |
+| --- | --- | --- |
+| FINANCIAL_ANALYST | UC-01 Build and compare reports | Read immutable report, access its raw evidence, run scenarios |
+| DATA_ANALYST | UC-02 Investigate input quality | Inspect raw history, staging, mappings and read financial reports |
+| DATA_ENGINEER | UC-03 Operate ETL | Incremental and full import, CSV, reprocessing and diagnostic queries |
+| DATA_STEWARD | UC-04 Repair a data classification | Publish a new mapping, reprocess raw and inspect issues |
+| ADMIN | UC-05 Operate demo | Create users, audit commands and run Lab where enabled |
+
+NFR-01 requires atomic checkpoint and warehouse publication. NFR-02 requires exact arithmetic and stable digests for equal inputs. NFR-03 requires scoped APIs, bounded CSV and paging, fixed source addresses, and no secrets in audit. NFR-04 requires resetting Lab without removing demo volumes.
+
+## Mapping and quality decisions
+
+| Origin | Field or identity | Target | Validation |
+| --- | --- | --- | --- |
+| All streams | sequence, kind, external ID, revision | raw delivery and version identity | Monotonic sequence, typed envelope |
+| ERP | date, amount, adjustment, currency | invoice business date and numeric amount | ISO date, decimal string, supported currency, nonnegative adjusted amount |
+| ERP | buyer or supplier, category | normalized attributes and category | Existing partner. Apply versioned category aliases |
+| ERP | budget category, date, amount | monthly accrual plan | RUB, month start, nonnegative |
+| Bank | account, date, amount, nature | payment fact and account reference | Existing account, matching currency, signed decimal and valid nature |
+| Bank | account, start, date, opening, closing | statement and reconciliation inputs | Existing account, ordered interval, exact values |
+| FX | business date, currency, rate | dated conversion dimension | Positive rate, non-RUB currency, unique day and currency |
+
+A malformed feed leaves the source cursor untouched. Duplicate deliveries are retained when the delivery sequence is new, with a duplicate disposition. Same-revision differences are visible in quality history. The latest erroneous canonical version is quarantined, so an older valid record cannot appear silently as current. A repaired dependency can be reprocessed without editing raw data. Missing month budgets, zero baselines and incomplete financial totals are displayed explicitly. The known subtotal remains visible. Cash balance is unavailable when the statement does not reconcile. Its known subtotal and evidence remain available.
+
+Bank matching uses an explicit document reference and validates the direction of payment or refund. A payment whose ID and normalized content match across CSV and bank delivery contributes once. Conflicts are investigated through quality history. Reconciliation exposes partial, open, settled and overpaid documents and bank differences. It does not infer a missing reference.
+
+## Errors and evidence
+
+401 identifies a missing or invalid session. 403 marks a role denial. 404 marks an unavailable entity. 409 reports a competing ETL publication or a conflicting command. 422 marks an invalid request or incompatible report period. Responses and audit retain a request identifier. Warehouse publication handles source outages as partial runs and persistence failures as rolled-back failed runs.
+
+[Context](diagrams/context.mmd) · [Containers](diagrams/containers.mmd) · [Warehouse ERD](diagrams/warehouse.mmd) · [ETL](diagrams/etl.mmd) · [Lineage](diagrams/lineage.mmd) · [Quality states](diagrams/quality.mmd) · [Verification](verification.md)
+
+The warehouse uses a consolidated facts table with a grain of source, entity and external key, plus typed views for document, payment and budget facts and counterparty and FX dimensions. It is a compact dimensional projection. Account, category, calendar and settlement context remain in columns or normalized attributes. Report queries use an inclusive business date and explicit accumulation horizons. A snapshot manifests both its inputs and its material exclusions. It computes known subtotals even when a metric is unavailable, applies a checksum to canonical serialization, and permits version comparison only for matching periods.
+
+[Report sequence](diagrams/report.mmd) · [Source correction sequence](diagrams/correction.mmd) · [ETL run states](diagrams/run.mmd)
